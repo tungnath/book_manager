@@ -174,3 +174,4 @@ def debug_books():
 
 if __name__ == '__main__':
     app.run(debug=True)
+    #debug - True or False for debugging
