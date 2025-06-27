@@ -25,6 +25,7 @@ def init_db():
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
 
+    # Users table
     cur.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,6 +35,7 @@ def init_db():
         )
     ''')
 
+    # Books table
     cur.execute('''
         CREATE TABLE IF NOT EXISTS books (
             bid INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,10 +44,15 @@ def init_db():
             owner TEXT NOT NULL
         )
     ''')
+
+    # Check if 'favourite' column exists in books table
+    cur.execute("PRAGMA table_info(books)")
+    columns = [row[1] for row in cur.fetchall()]
+    if 'favourite' not in columns:
+        cur.execute("ALTER TABLE books ADD COLUMN favourite INTEGER DEFAULT 0")
+
     conn.commit()
     conn.close()
-
-init_db()
 
 @app.route('/api/signup', methods=['POST'])
 def signup():
@@ -116,10 +123,41 @@ def get_books():
         cur.execute("SELECT * FROM books")
     else:
         cur.execute("SELECT * FROM books WHERE owner=?", (username,))
-
-    books = [{'bid': row[0], 'title': row[1], 'author': row[2]} for row in cur.fetchall()]
+    books = [
+        {
+            'bid': row['bid'],
+            'title': row['title'],
+            'author': row['author'],
+            'favourite': row['favourite'] if 'favourite' in row.keys() else 0
+        }
+        for row in cur.fetchall()
+    ]
     conn.close()
     return jsonify(books)
+
+@app.route('/api/books/favourite/<int:bid>', methods=['POST'])
+def toggle_favourite_book(bid):
+    data = request.get_json()
+    username = data.get('username')
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    c.execute("SELECT favourite FROM books WHERE bid = ? AND owner = ?", (bid, username))
+    row = c.fetchone()
+
+    if not row:
+        conn.close()
+        return jsonify({'message': 'Book not found'}), 404
+
+    new_status = 0 if row[0] == 1 else 1
+
+    c.execute("UPDATE books SET favourite = ? WHERE bid = ? AND owner = ?", (new_status, bid, username))
+    conn.commit()
+    conn.close()
+
+    message = "Removed from favourites" if new_status == 0 else "Book marked as favourite"
+    return jsonify({'message': message})
 
 @app.route('/api/books', methods=['POST'])
 def add_book():
@@ -174,4 +212,3 @@ def debug_books():
 
 if __name__ == '__main__':
     app.run(debug=True)
-    #debug - True or False for debugging
