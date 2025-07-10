@@ -8,7 +8,7 @@ import os
 app = Flask(__name__)
 
 CORS(app,
-     origins=["http://localhost:8081", "https://book-manager-fe.pages.dev/"],
+     origins=["http://localhost:8081", "https://book-manager-fe.pages.dev"],
      supports_credentials=True,
      allow_headers=["Content-Type", "Authorization", "X-Custom-Header"])
 
